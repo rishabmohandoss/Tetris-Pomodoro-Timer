@@ -224,18 +224,6 @@
     let gameStarted = false;
     let breakIsOver = false; // set to true when parent signals break ended
 
-    // Listen for messages from parent (the Pomodoro timer)
-    window.addEventListener('message', function(e) {
-      if (e.data === 'startGame' && !gameStarted) {
-        gameStarted = true;
-        breakIsOver = false;
-        document.getElementById('waiting-overlay').classList.add('hidden');
-        startBootSequence();
-      }
-      if (e.data === 'breakOver') {
-        breakIsOver = true;
-      }
-    });
 
     const canvas = document.getElementById("tetris");
     const context = canvas.getContext("2d");
