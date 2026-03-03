@@ -115,3 +115,15 @@ breakInput.addEventListener('change', () => {
 
 // Initialize the display when the page first loads
 updateDisplay();
+const rainSound = document.getElementById('rain-sound');
+const rainBtn = document.getElementById('rain-btn');
+
+rainBtn.addEventListener('click', () => {
+  if (rainSound.paused) {
+    rainSound.play();
+    rainBtn.textContent = '⏸ Pause Rain';
+  } else {
+    rainSound.pause();
+    rainBtn.textContent = '🎵 Play Rain Sounds';
+  }
+});
