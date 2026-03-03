@@ -61,7 +61,7 @@
 
     /* === TIMER PANEL === */
     .timer-panel {
-      background: linear-gradient(135deg, rgba(253, 248, 243, 0.1) 0%, rgba(232, 220, 200, 0.1) 100%);
+      background: linear-gradient(135deg, rgba(253, 248, 243, 0.4) 0%, rgba(232, 220, 200, 0.4) 100%);
       border: 3px solid var(--soft-brown);
       border-radius: 24px;
       padding: 40px 48px 32px;
@@ -129,6 +129,14 @@
       padding: 12px 20px;
     }
 
+    .btn-skip {
+      background: rgba(244, 212, 230, 0.6);
+      color: var(--dark-brown);
+      border: 2px solid var(--puppy-pink);
+      padding: 10px 20px;
+      margin-top: 15px;
+    }
+
     .settings-row {
       display: flex;
       justify-content: center;
@@ -137,25 +145,32 @@
     }
 
     .input-group { display: flex; flex-direction: column; align-items: center; }
-    .input-group label { font-size: 0.7rem; text-transform: uppercase; margin-bottom: 5px; }
-    .input-group input { width: 60px; text-align: center; border-radius: 8px; border: 1px solid var(--soft-brown); }
+    .input-group label { font-size: 0.7rem; text-transform: uppercase; margin-bottom: 5px; color: var(--soft-brown); }
+    .input-group input { width: 65px; padding: 5px; text-align: center; border-radius: 8px; border: 1px solid var(--soft-brown); background: rgba(255,255,255,0.5); }
 
     .progress-track { width: 100%; height: 8px; background: rgba(0,0,0,0.1); border-radius: 10px; margin: 15px 0; overflow: hidden; }
     .progress-fill { height: 100%; background: var(--accent-warm); width: 100%; transition: width 1s linear; }
 
+    /* === GAME PANEL === */
     .game-panel {
-      margin-top: 30px;
-      background: rgba(253, 248, 243, 0.5);
-      padding: 20px;
-      border-radius: 20px;
-      backdrop-filter: blur(10px);
+      margin-top: 36px;
+      background: linear-gradient(135deg, rgba(253, 248, 243, 0.4) 0%, rgba(232, 220, 200, 0.4) 100%);
+      border: 3px solid var(--soft-brown);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 12px 48px var(--panel-shadow);
+      text-align: center;
+      width: min(920px, 95vw);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
+
     .hidden { display: none !important; }
   </style>
 </head>
 <body>
 
-  <audio id="rain-sound" loop src="rain_sounds.mp3"></audio>
+  <audio id="rain-sound" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio>
   <audio id="fetty-sound" loop src="fetty.mp3"></audio>
 
   <div class="page">
@@ -167,16 +182,16 @@
         <button class="btn btn-secondary" id="fetty-btn">🔥 Fetty</button>
       </div>
 
-      <div class="mode-label" id="mode-text" style="font-family: Handlee; font-weight: bold;">Work Time</div>
+      <div class="mode-label" id="mode-text" style="font-family: Handlee; font-weight: bold; font-size: 1.5rem; color: var(--dark-brown);">Work Time</div>
 
       <div class="settings-row" id="settings">
         <div class="input-group">
           <label>Work</label>
-          <input type="number" id="work-input" value="25">
+          <input type="number" id="work-input" value="25" min="1">
         </div>
         <div class="input-group">
           <label>Break</label>
-          <input type="number" id="break-input" value="5">
+          <input type="number" id="break-input" value="5" min="1">
         </div>
       </div>
 
@@ -191,38 +206,84 @@
         <button class="btn btn-secondary" id="pause-btn">Pause</button>
         <button class="btn btn-secondary" id="reset-btn">Reset</button>
       </div>
+
+      <button class="btn btn-skip" id="skip-btn">⏭ Skip Block</button>
     </div>
 
     <div id="game-container" class="game-panel hidden">
-      <iframe src="tetris.html" frameborder="0" width="800" height="850"></iframe>
+      <h2 style="font-family: Handlee; margin-bottom: 15px; color: var(--dark-brown);">Break Time — Play Some Tetris!</h2>
+      <iframe src="tetris.html" frameborder="0" width="800" height="850" id="tetris-frame"></iframe>
     </div>
   </div>
 
   <script>
-    let timerInterval, totalSeconds, timeLeft, isWorkMode = true, isRunning = false;
+    let timerInterval;
+    let totalSeconds;
+    let timeLeft;
+    let isWorkMode = true;
+    let isRunning = false;
 
     const display = document.getElementById('timer-display');
+    const modeText = document.getElementById('mode-text');
+    const workInput = document.getElementById('work-input');
+    const breakInput = document.getElementById('break-input');
+    const progressFill = document.getElementById('progress-fill');
+    const gameContainer = document.getElementById('game-container');
+    const settingsContainer = document.getElementById('settings');
+
     const rainSound = document.getElementById('rain-sound');
     const fettySound = document.getElementById('fetty-sound');
     const rainBtn = document.getElementById('rain-btn');
     const fettyBtn = document.getElementById('fetty-btn');
 
+    function init() {
+      totalSeconds = workInput.value * 60;
+      timeLeft = totalSeconds;
+      updateDisplay();
+    }
+
     function updateDisplay() {
-      let m = Math.floor(timeLeft / 60), s = timeLeft % 60;
+      let m = Math.floor(timeLeft / 60);
+      let s = timeLeft % 60;
       display.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-      document.getElementById('progress-fill').style.width = (timeLeft / totalSeconds) * 100 + '%';
+      const pct = totalSeconds > 0 ? (timeLeft / totalSeconds) * 100 : 0;
+      progressFill.style.width = pct + '%';
     }
 
     function startTimer() {
       if (isRunning) return;
       isRunning = true;
       timerInterval = setInterval(() => {
-        if (timeLeft > 0) { timeLeft--; updateDisplay(); }
-        else { clearInterval(timerInterval); isRunning = false; }
+        if (timeLeft > 0) {
+          timeLeft--;
+          updateDisplay();
+        } else {
+          clearInterval(timerInterval);
+          isRunning = false;
+          switchMode();
+        }
       }, 1000);
     }
 
-    // Toggle Audio Function
+    function switchMode() {
+      isWorkMode = !isWorkMode;
+      if (isWorkMode) {
+        modeText.textContent = 'Work Time';
+        totalSeconds = workInput.value * 60;
+        gameContainer.classList.add('hidden');
+        settingsContainer.classList.remove('hidden');
+      } else {
+        modeText.textContent = 'Break Time!';
+        totalSeconds = breakInput.value * 60;
+        gameContainer.classList.remove('hidden');
+        settingsContainer.classList.add('hidden');
+      }
+      timeLeft = totalSeconds;
+      updateDisplay();
+      startTimer();
+    }
+
+    // Audio Logic
     function toggleAudio(audio, btn, label) {
       if (audio.paused) {
         audio.play();
@@ -241,12 +302,19 @@
     document.getElementById('start-btn').addEventListener('click', startTimer);
     document.getElementById('pause-btn').addEventListener('click', () => { clearInterval(timerInterval); isRunning = false; });
     document.getElementById('reset-btn').addEventListener('click', () => {
-      clearInterval(timerInterval); isRunning = false;
-      totalSeconds = document.getElementById('work-input').value * 60;
-      timeLeft = totalSeconds; updateDisplay();
+      clearInterval(timerInterval);
+      isRunning = false;
+      timeLeft = isWorkMode ? workInput.value * 60 : breakInput.value * 60;
+      totalSeconds = timeLeft;
+      updateDisplay();
+    });
+    document.getElementById('skip-btn').addEventListener('click', () => {
+      clearInterval(timerInterval);
+      isRunning = false;
+      switchMode();
     });
 
-    totalSeconds = 25 * 60; timeLeft = totalSeconds;
+    init();
   </script>
 </body>
 </html>
