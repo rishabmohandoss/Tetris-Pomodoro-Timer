@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodoro & Tetris</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1 id="mode-text">Work Time</h1>
+
+        <div id="settings">
+            <div class="input-group">
+                <label for="work-input">Work (min):</label>
+                <input type="number" id="work-input" value="25" min="1">
+            </div>
+            <div class="input-group">
+                <label for="break-input">Break (min):</label>
+                <input type="number" id="break-input" value="5" min="1">
+            </div>
+        </div>
+
+        <div id="timer-display">25:00</div>
+
+        <div class="controls">
+            <button id="start-btn">Start</button>
+            <button id="pause-btn">Pause</button>
+            <button id="reset-btn">Reset</button>
+        </div>
+    </div>
+
+    <div id="game-container" class="hidden">
+        <p class="game-hint">Log into your account inside the game box below!</p>
+        <iframe src="https://jstris.jezevec10.com/" frameborder="0" width="600" height="600"></iframe>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
