@@ -30,6 +30,7 @@
       background-repeat: no-repeat;
     }
 
+    /* Subtle overlay to help contrast */
     body::before {
       content: '';
       position: fixed;
@@ -59,19 +60,28 @@
       font-weight: 700;
     }
 
-    /* === TIMER PANEL === */
-    .timer-panel {
+    /* === PANELS (40% Opacity) === */
+    .timer-panel, .game-panel {
       background: linear-gradient(135deg, rgba(253, 248, 243, 0.4) 0%, rgba(232, 220, 200, 0.4) 100%);
       border: 3px solid var(--soft-brown);
       border-radius: 24px;
-      padding: 40px 48px 32px;
       box-shadow: 0 12px 48px var(--panel-shadow);
       text-align: center;
-      width: min(480px, 95vw);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       position: relative;
       animation: slideUp 0.6s ease-out;
+    }
+
+    .timer-panel {
+      padding: 40px 48px 32px;
+      width: min(480px, 95vw);
+    }
+
+    .game-panel {
+      margin-top: 36px;
+      padding: 24px;
+      width: min(920px, 95vw);
     }
 
     @keyframes slideUp {
@@ -116,26 +126,9 @@
       transition: all 0.2s ease;
     }
 
-    .btn-primary {
-      background: var(--accent-warm);
-      color: white;
-      padding: 12px 25px;
-    }
-
-    .btn-secondary {
-      background: rgba(255, 255, 255, 0.7);
-      color: var(--dark-brown);
-      border: 1px solid var(--soft-brown);
-      padding: 12px 20px;
-    }
-
-    .btn-skip {
-      background: rgba(244, 212, 230, 0.6);
-      color: var(--dark-brown);
-      border: 2px solid var(--puppy-pink);
-      padding: 10px 20px;
-      margin-top: 15px;
-    }
+    .btn-primary { background: var(--accent-warm); color: white; padding: 12px 25px; }
+    .btn-secondary { background: rgba(255, 255, 255, 0.7); color: var(--dark-brown); border: 1px solid var(--soft-brown); padding: 12px 20px; }
+    .btn-skip { background: rgba(244, 212, 230, 0.6); color: var(--dark-brown); border: 2px solid var(--puppy-pink); padding: 10px 20px; margin-top: 15px; }
 
     .settings-row {
       display: flex;
@@ -151,26 +144,12 @@
     .progress-track { width: 100%; height: 8px; background: rgba(0,0,0,0.1); border-radius: 10px; margin: 15px 0; overflow: hidden; }
     .progress-fill { height: 100%; background: var(--accent-warm); width: 100%; transition: width 1s linear; }
 
-    /* === GAME PANEL === */
-    .game-panel {
-      margin-top: 36px;
-      background: linear-gradient(135deg, rgba(253, 248, 243, 0.4) 0%, rgba(232, 220, 200, 0.4) 100%);
-      border: 3px solid var(--soft-brown);
-      border-radius: 24px;
-      padding: 24px;
-      box-shadow: 0 12px 48px var(--panel-shadow);
-      text-align: center;
-      width: min(920px, 95vw);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-    }
-
     .hidden { display: none !important; }
   </style>
 </head>
 <body>
 
-  <audio id="rain-sound" loop src="rain_sounds"></audio>
+  <audio id="rain-sound" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio>
   <audio id="fetty-sound" loop src="fetty.mp3"></audio>
 
   <div class="page">
@@ -179,19 +158,19 @@
     <div class="timer-panel">
       <div class="audio-row">
         <button class="btn btn-secondary" id="rain-btn">🎵 Rain</button>
-        <button class="btn btn-secondary" id="fetty-btn">🔥 Fetty</button>
+        <button class="btn btn-secondary" id="fetty-btn">🔥 Play Fetty</button>
       </div>
 
-      <div class="mode-label" id="mode-text" style="font-family: Handlee; font-weight: bold; font-size: 1.5rem; color: var(--dark-brown);">Work Time</div>
+      <div class="mode-label" id="mode-text" style="font-family: Handlee; font-weight: bold; font-size: 1.4rem;">Work Time</div>
 
       <div class="settings-row" id="settings">
         <div class="input-group">
           <label>Work</label>
-          <input type="number" id="work-input" value="25" min="1">
+          <input type="number" id="work-input" value="25">
         </div>
         <div class="input-group">
           <label>Break</label>
-          <input type="number" id="break-input" value="5" min="1">
+          <input type="number" id="break-input" value="5">
         </div>
       </div>
 
@@ -211,17 +190,13 @@
     </div>
 
     <div id="game-container" class="game-panel hidden">
-      <h2 style="font-family: Handlee; margin-bottom: 15px; color: var(--dark-brown);">Break Time — Play Some Tetris!</h2>
-      <iframe src="tetris.html" frameborder="0" width="800" height="850" id="tetris-frame"></iframe>
+      <h2 style="font-family: Handlee; margin-bottom: 10px;">Break Time!</h2>
+      <iframe src="tetris.html" id="tetris-frame" frameborder="0" width="800" height="850"></iframe>
     </div>
   </div>
 
   <script>
-    let timerInterval;
-    let totalSeconds;
-    let timeLeft;
-    let isWorkMode = true;
-    let isRunning = false;
+    let timerInterval, totalSeconds, timeLeft, isWorkMode = true, isRunning = false;
 
     const display = document.getElementById('timer-display');
     const modeText = document.getElementById('mode-text');
@@ -236,18 +211,10 @@
     const rainBtn = document.getElementById('rain-btn');
     const fettyBtn = document.getElementById('fetty-btn');
 
-    function init() {
-      totalSeconds = workInput.value * 60;
-      timeLeft = totalSeconds;
-      updateDisplay();
-    }
-
     function updateDisplay() {
-      let m = Math.floor(timeLeft / 60);
-      let s = timeLeft % 60;
+      let m = Math.floor(timeLeft / 60), s = timeLeft % 60;
       display.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-      const pct = totalSeconds > 0 ? (timeLeft / totalSeconds) * 100 : 0;
-      progressFill.style.width = pct + '%';
+      progressFill.style.width = (timeLeft / totalSeconds) * 100 + '%';
     }
 
     function startTimer() {
@@ -266,24 +233,27 @@
     }
 
     function switchMode() {
-      isWorkMode = !isWorkMode;
-      if (isWorkMode) {
-        modeText.textContent = 'Work Time';
-        totalSeconds = workInput.value * 60;
-        gameContainer.classList.add('hidden');
-        settingsContainer.classList.remove('hidden');
-      } else {
-        modeText.textContent = 'Break Time!';
-        totalSeconds = breakInput.value * 60;
-        gameContainer.classList.remove('hidden');
-        settingsContainer.classList.add('hidden');
-      }
-      timeLeft = totalSeconds;
-      updateDisplay();
-      startTimer();
+        isWorkMode = !isWorkMode;
+        const tetrisFrame = document.getElementById('tetris-frame');
+        
+        if (isWorkMode) {
+            modeText.textContent = 'Work Time';
+            totalSeconds = workInput.value * 60;
+            gameContainer.classList.add('hidden');
+            settingsContainer.classList.remove('hidden');
+            // Reset the game source so it's fresh for next time
+            tetrisFrame.src = "tetris.html"; 
+        } else {
+            modeText.textContent = 'Break Time!';
+            totalSeconds = breakInput.value * 60;
+            gameContainer.classList.remove('hidden');
+            settingsContainer.classList.add('hidden');
+        }
+        timeLeft = totalSeconds;
+        updateDisplay();
+        startTimer();
     }
 
-    // Audio Logic
     function toggleAudio(audio, btn, label) {
       if (audio.paused) {
         audio.play();
@@ -297,24 +267,22 @@
     }
 
     rainBtn.addEventListener('click', () => toggleAudio(rainSound, rainBtn, 'Rain'));
-    fettyBtn.addEventListener('click', () => toggleAudio(fettySound, fettyBtn, 'Fetty'));
+    fettyBtn.addEventListener('click', () => toggleAudio(fettySound, fettyBtn, 'Play Fetty'));
 
     document.getElementById('start-btn').addEventListener('click', startTimer);
     document.getElementById('pause-btn').addEventListener('click', () => { clearInterval(timerInterval); isRunning = false; });
     document.getElementById('reset-btn').addEventListener('click', () => {
-      clearInterval(timerInterval);
-      isRunning = false;
+      clearInterval(timerInterval); isRunning = false;
       timeLeft = isWorkMode ? workInput.value * 60 : breakInput.value * 60;
       totalSeconds = timeLeft;
       updateDisplay();
     });
-    document.getElementById('skip-btn').addEventListener('click', () => {
-      clearInterval(timerInterval);
-      isRunning = false;
-      switchMode();
-    });
+    document.getElementById('skip-btn').addEventListener('click', switchMode);
 
-    init();
+    // Initial setup
+    totalSeconds = workInput.value * 60;
+    timeLeft = totalSeconds;
+    updateDisplay();
   </script>
 </body>
 </html>
