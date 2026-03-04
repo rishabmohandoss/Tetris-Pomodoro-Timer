@@ -22,12 +22,11 @@
       display: flex; flex-direction: column; align-items: center;
       background-image: linear-gradient(rgba(0, 0, 0, 0.97), rgba(0, 0, 0, 0.97)),
         repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(57, 255, 20, 0.04) 2px, rgba(57, 255, 20, 0.04) 4px);
-      overflow: hidden; /* Local overflow hidden for the game frame */
+      overflow: hidden;
     }
 
     .game-title { font-size: 24px; margin-bottom: 20px; color: #dc143c; text-shadow: var(--text-glow); }
 
-    /* START OVERLAY */
     #start-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.95);
       display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -54,6 +53,14 @@
       position: fixed; inset: 0; background: var(--bg-dark); color: var(--tetris-cyan);
       display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 9999;
     }
+
+    .side-panel {
+      display: flex; flex-direction: column; align-items: center;
+      font-size: 10px; color: var(--tetris-cyan);
+    }
+    .side-panel canvas {
+      margin-top: 5px;
+    }
   </style>
 </head>
 <body>
@@ -72,12 +79,12 @@
 
   <div class="game-container">
     <div class="side-panel">
-      <div style="font-size: 10px; margin-bottom: 5px;">HOLD</div>
+      <div>HOLD</div>
       <canvas id="hold" width="80" height="80"></canvas>
     </div>
     <canvas id="tetris" width="240" height="400"></canvas>
     <div class="side-panel">
-      <div style="font-size: 10px; margin-bottom: 5px;">NEXT</div>
+      <div>NEXT</div>
       <canvas id="preview" width="80" height="80"></canvas>
     </div>
   </div>
@@ -94,11 +101,18 @@
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     const canvas = document.getElementById("tetris");
     const context = canvas.getContext("2d");
+    const holdCanvas = document.getElementById("hold");
+    const holdContext = holdCanvas.getContext("2d");
+    const previewCanvas = document.getElementById("preview");
+    const previewContext = previewCanvas.getContext("2d");
+
     const scoreElement = document.getElementById("score");
     const highScoreElement = document.getElementById("high-score");
     const levelElement = document.getElementById("level");
+
     const blockSize = 20;
     const cols = 12, rows = 20;
+    const previewBlockSize = 16;
 
     let score = 0, level = 1, linesCleared = 0, isPaused = false;
     let highScore = localStorage.getItem("tetrisHighScore") || 0;
@@ -106,18 +120,48 @@
 
     const board = Array(rows).fill().map(() => Array(cols).fill(0));
     const colors = ["#FF6B6B","#48CFAD","#FFCE54","#FC6E51","#5D9CEC","#A0D468","#AC92EC"];
-    const pieces = [ [[1,1,1,1]], [[1,1],[1,1]], [[1,1,1],[0,1,0]], [[1,1,1],[1,0,0]], [[1,1,1],[0,0,1]], [[1,1,0],[0,1,1]], [[0,1,1],[1,1,0]] ];
+    const pieces = [
+      [[1,1,1,1]],
+      [[1,1],[1,1]],
+      [[1,1,1],[0,1,0]],
+      [[1,1,1],[1,0,0]],
+      [[1,1,1],[0,0,1]],
+      [[1,1,0],[0,1,1]],
+      [[0,1,1],[1,1,0]]
+    ];
 
     let currentPiece, currentPiecePos, currentColor;
     let nextPieceIndex = Math.floor(Math.random() * pieces.length);
     let holdPiece = null, holdColor = null, canHold = true;
 
-    // SCROLL FIX: Capture keys
+    // Draw a mini piece centered in a small canvas
+    function drawMiniPiece(ctx, piece, color) {
+      const cw = ctx.canvas.width;
+      const ch = ctx.canvas.height;
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, cw, ch);
+
+      if (!piece) return;
+
+      const bs = previewBlockSize;
+      const pw = piece[0].length * bs;
+      const ph = piece.length * bs;
+      const offsetX = Math.floor((cw - pw) / 2);
+      const offsetY = Math.floor((ch - ph) / 2);
+
+      ctx.fillStyle = color;
+      piece.forEach((row, y) => {
+        row.forEach((v, x) => {
+          if (v) {
+            ctx.fillRect(offsetX + x * bs, offsetY + y * bs, bs - 1, bs - 1);
+          }
+        });
+      });
+    }
+
     document.addEventListener("keydown", e => {
       const keysToBlock = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " ", "Shift"];
-      if (keysToBlock.includes(e.key)) {
-        e.preventDefault(); // Stop screen scrolling
-      }
+      if (keysToBlock.includes(e.key)) e.preventDefault();
 
       if (e.key === "ArrowLeft") { currentPiecePos.x--; if(collide()) currentPiecePos.x++; }
       if (e.key === "ArrowRight") { currentPiecePos.x++; if(collide()) currentPiecePos.x--; }
@@ -147,17 +191,27 @@
 
     function createPiece() {
       const pi = nextPieceIndex;
-      currentPiece = pieces[pi]; currentColor = colors[pi];
+      currentPiece = pieces[pi];
+      currentColor = colors[pi];
       nextPieceIndex = Math.floor(Math.random() * pieces.length);
       currentPiecePos = {x: Math.floor((cols - currentPiece[0].length) / 2), y: 0};
       canHold = true;
-      if(collide()) { 
-        if(score > highScore) { 
-          highScore = score; 
+
+      // Draw the upcoming next piece
+      drawMiniPiece(previewContext, pieces[nextPieceIndex], colors[nextPieceIndex]);
+
+      if(collide()) {
+        if(score > highScore) {
+          highScore = score;
           localStorage.setItem("tetrisHighScore", highScore);
           highScoreElement.textContent = `BEST:${highScore}`;
         }
-        board.forEach(r => r.fill(0)); score = 0; level = 1; 
+        board.forEach(r => r.fill(0));
+        score = 0; level = 1; linesCleared = 0;
+        scoreElement.textContent = `SCORE:0`;
+        levelElement.textContent = `LVL:1`;
+        holdPiece = null; holdColor = null;
+        drawMiniPiece(holdContext, null, null);
       }
     }
 
@@ -166,16 +220,23 @@
       if(collide()) {
         currentPiecePos.y--;
         currentPiece.forEach((row, y) => {
-          row.forEach((v, x) => { if(v) board[currentPiecePos.y + y][currentPiecePos.x + x] = currentColor; });
+          row.forEach((v, x) => {
+            if(v) board[currentPiecePos.y + y][currentPiecePos.x + x] = currentColor;
+          });
         });
-        clearLines(); createPiece();
+        clearLines();
+        createPiece();
       }
     }
 
     function clearLines() {
       let lines = 0;
       for(let y = rows - 1; y >= 0; y--) {
-        if(board[y].every(c => c !== 0)) { board.splice(y, 1); board.unshift(Array(cols).fill(0)); lines++; y++; }
+        if(board[y].every(c => c !== 0)) {
+          board.splice(y, 1);
+          board.unshift(Array(cols).fill(0));
+          lines++; y++;
+        }
       }
       if(lines > 0) {
         linesCleared += lines;
@@ -187,18 +248,45 @@
     }
 
     function holdCurrentPiece() {
-        if(!canHold) return;
-        if(!holdPiece) { holdPiece = currentPiece; holdColor = currentColor; createPiece(); }
-        else { [currentPiece, holdPiece] = [holdPiece, currentPiece]; [currentColor, holdColor] = [holdColor, currentColor]; currentPiecePos = {x:4, y:0}; }
-        canHold = false;
+      if(!canHold) return;
+      if(!holdPiece) {
+        holdPiece = currentPiece;
+        holdColor = currentColor;
+        createPiece();
+      } else {
+        [currentPiece, holdPiece] = [holdPiece, currentPiece];
+        [currentColor, holdColor] = [holdColor, currentColor];
+        currentPiecePos = {x: Math.floor((cols - currentPiece[0].length) / 2), y: 0};
+      }
+      canHold = false;
+      // Redraw hold panel
+      drawMiniPiece(holdContext, holdPiece, holdColor);
     }
 
     function draw() {
-      context.fillStyle = "#000"; context.fillRect(0, 0, canvas.width, canvas.height);
-      board.forEach((row, y) => { row.forEach((v, x) => { if(v) { context.fillStyle = v; context.fillRect(x*blockSize, y*blockSize, blockSize-1, blockSize-1); } }); });
+      context.fillStyle = "#000";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      board.forEach((row, y) => {
+        row.forEach((v, x) => {
+          if(v) {
+            context.fillStyle = v;
+            context.fillRect(x*blockSize, y*blockSize, blockSize-1, blockSize-1);
+          }
+        });
+      });
+
       if(currentPiece) {
         context.fillStyle = currentColor;
-        currentPiece.forEach((row, y) => { row.forEach((v, x) => { if(v) context.fillRect((currentPiecePos.x+x)*blockSize, (currentPiecePos.y+y)*blockSize, blockSize-1, blockSize-1); }); });
+        currentPiece.forEach((row, y) => {
+          row.forEach((v, x) => {
+            if(v) context.fillRect(
+              (currentPiecePos.x+x)*blockSize,
+              (currentPiecePos.y+y)*blockSize,
+              blockSize-1, blockSize-1
+            );
+          });
+        });
       }
     }
 
@@ -207,10 +295,10 @@
       const dt = time - lastTime; lastTime = time;
       dropCounter += dt;
       if(dropCounter > 1000 - (level * 80)) { drop(); dropCounter = 0; }
-      draw(); requestAnimationFrame(update);
+      draw();
+      requestAnimationFrame(update);
     }
 
-    // START OVERLAY LOGIC
     window.onload = () => {
       const overlay = document.getElementById('start-overlay');
       overlay.addEventListener('click', () => {
@@ -230,7 +318,8 @@
           clearInterval(interval);
           setTimeout(() => {
             document.getElementById("bootOverlay").remove();
-            createPiece(); update();
+            createPiece();
+            update();
           }, 600);
         }
       }, 500);
